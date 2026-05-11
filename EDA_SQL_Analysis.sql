@@ -39,16 +39,27 @@ FROM [dbo].[job_salary_prediction_dataset];
 -- 2. SALARY STATISTICS & DISTRIBUTION
 -- ============================================================================
 
--- Overall salary statistics
-SELECT 
-    MIN(salary) AS min_salary,
-    MAX(salary) AS max_salary,
-    AVG(salary) AS avg_salary,
-    STDEV(salary) AS salary_stddev,
-    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) OVER () AS q1_salary,
-    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) OVER () AS median_salary,
-    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) OVER () AS q3_salary
-FROM [dbo].[job_salary_prediction_dataset];
+-- Overall salary statistics - using CTE for window functions
+WITH salary_stats AS (
+    SELECT 
+        MIN(salary) OVER () AS min_salary,
+        MAX(salary) OVER () AS max_salary,
+        AVG(salary) OVER () AS avg_salary,
+        STDEV(salary) OVER () AS salary_stddev,
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) OVER () AS q1_salary,
+        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) OVER () AS median_salary,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) OVER () AS q3_salary
+    FROM [dbo].[job_salary_prediction_dataset]
+)
+SELECT DISTINCT
+    min_salary,
+    max_salary,
+    avg_salary,
+    salary_stddev,
+    q1_salary,
+    median_salary,
+    q3_salary
+FROM salary_stats;
 
 -- Salary distribution by quartiles
 SELECT 
