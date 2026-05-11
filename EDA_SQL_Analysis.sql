@@ -39,27 +39,16 @@ FROM [dbo].[job_salary_prediction_dataset];
 -- 2. SALARY STATISTICS & DISTRIBUTION
 -- ============================================================================
 
--- Overall salary statistics - using CTE for window functions
-WITH salary_stats AS (
-    SELECT 
-        MIN(salary) OVER () AS min_salary,
-        MAX(salary) OVER () AS max_salary,
-        AVG(salary) OVER () AS avg_salary,
-        STDEV(salary) OVER () AS salary_stddev,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) OVER () AS q1_salary,
-        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) OVER () AS median_salary,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) OVER () AS q3_salary
-    FROM [dbo].[job_salary_prediction_dataset]
-)
-SELECT DISTINCT
-    min_salary,
-    max_salary,
-    avg_salary,
-    salary_stddev,
-    q1_salary,
-    median_salary,
-    q3_salary
-FROM salary_stats;
+-- Overall salary statistics - using simple aggregates and subqueries
+SELECT 
+    MIN(salary) AS min_salary,
+    MAX(salary) AS max_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
+    (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q1_salary,
+    (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS median_salary,
+    (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q3_salary
+FROM [dbo].[job_salary_prediction_dataset];
 
 -- Salary distribution by quartiles
 SELECT 
@@ -67,7 +56,7 @@ SELECT
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
     COUNT(*) AS record_count,
-    AVG(salary) AS avg_salary
+    AVG(CAST(salary AS FLOAT)) AS avg_salary
 FROM [dbo].[job_salary_prediction_dataset]
 WHERE salary <= (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
 UNION ALL
@@ -76,7 +65,7 @@ SELECT
     MIN(salary),
     MAX(salary),
     COUNT(*),
-    AVG(salary)
+    AVG(CAST(salary AS FLOAT))
 FROM [dbo].[job_salary_prediction_dataset]
 WHERE salary > (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
     AND salary <= (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
@@ -86,7 +75,7 @@ SELECT
     MIN(salary),
     MAX(salary),
     COUNT(*),
-    AVG(salary)
+    AVG(CAST(salary AS FLOAT))
 FROM [dbo].[job_salary_prediction_dataset]
 WHERE salary > (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
     AND salary <= (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
@@ -96,7 +85,7 @@ SELECT
     MIN(salary),
     MAX(salary),
     COUNT(*),
-    AVG(salary)
+    AVG(CAST(salary AS FLOAT))
 FROM [dbo].[job_salary_prediction_dataset]
 WHERE salary > (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]);
 
@@ -107,10 +96,10 @@ WHERE salary > (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM
 SELECT TOP 20
     job_title,
     COUNT(*) AS job_count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev,
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
     AVG(CAST(experience_years AS FLOAT)) AS avg_experience
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY job_title
@@ -132,7 +121,7 @@ ORDER BY job_count DESC;
 SELECT 
     education_level,
     COUNT(*) AS record_count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
     CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
@@ -156,7 +145,7 @@ ORDER BY count DESC;
 SELECT 
     experience_years,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -168,7 +157,7 @@ SELECT
     MIN(experience_years) AS min_experience,
     MAX(experience_years) AS max_experience,
     AVG(CAST(experience_years AS FLOAT)) AS avg_experience,
-    STDEV(experience_years) AS experience_stddev
+    STDEV(CAST(experience_years AS FLOAT)) AS experience_stddev
 FROM [dbo].[job_salary_prediction_dataset];
 
 -- Experience brackets and salary
@@ -181,7 +170,7 @@ SELECT
         ELSE '15+ years'
     END AS experience_bracket,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -209,10 +198,10 @@ ORDER BY
 SELECT TOP 20
     industry,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev,
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
     CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY industry
@@ -234,10 +223,10 @@ ORDER BY count DESC;
 SELECT 
     company_size,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev,
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
     CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY company_size
@@ -259,10 +248,10 @@ ORDER BY count DESC;
 SELECT TOP 25
     location,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY location
 ORDER BY avg_salary DESC;
@@ -283,10 +272,10 @@ ORDER BY count DESC;
 SELECT 
     remote_work,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev,
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
     CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY remote_work
@@ -308,10 +297,10 @@ ORDER BY count DESC;
 SELECT 
     skills,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY skills
 ORDER BY avg_salary DESC;
@@ -332,10 +321,10 @@ ORDER BY count DESC;
 SELECT 
     certifications,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(salary) AS salary_stddev
+    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY certifications
 ORDER BY avg_salary DESC;
@@ -357,7 +346,7 @@ SELECT TOP 30
     job_title,
     education_level,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -369,7 +358,7 @@ SELECT
     industry,
     company_size,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -381,7 +370,7 @@ SELECT
     location,
     remote_work,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -394,7 +383,7 @@ SELECT
     certifications,
     remote_work,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -488,7 +477,7 @@ SELECT
     job_title,
     industry,
     company_size,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     COUNT(*) AS count,
     AVG(CAST(experience_years AS FLOAT)) AS avg_experience,
     AVG(CAST(skills AS FLOAT)) AS avg_skills,
@@ -503,7 +492,7 @@ SELECT
     experience_years,
     certifications,
     COUNT(*) AS count,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -514,7 +503,7 @@ ORDER BY experience_years, certifications;
 SELECT 
     remote_work,
     job_title,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     COUNT(*) AS count
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY remote_work, job_title
@@ -529,10 +518,10 @@ SELECT
     job_title,
     education_level,
     COUNT(*) AS total_positions,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MAX(salary) AS max_salary,
     MIN(salary) AS min_salary,
-    STDEV(salary) AS salary_variance,
+    STDEV(CAST(salary AS FLOAT)) AS salary_variance,
     AVG(CAST(experience_years AS FLOAT)) AS avg_exp,
     AVG(CAST(certifications AS FLOAT)) AS avg_certs
 FROM [dbo].[job_salary_prediction_dataset]
@@ -544,7 +533,7 @@ SELECT
     location,
     company_size,
     COUNT(*) AS positions,
-    AVG(salary) AS avg_salary,
+    AVG(CAST(salary AS FLOAT)) AS avg_salary,
     MAX(salary) AS max_salary,
     MIN(salary) AS min_salary,
     AVG(CAST(experience_years AS FLOAT)) AS avg_experience
