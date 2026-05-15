@@ -129,15 +129,6 @@ FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY education_level
 ORDER BY avg_salary DESC;
 
--- Education level distribution
-SELECT 
-    education_level,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage_distribution
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY education_level
-ORDER BY count DESC;
-
 -- 5. EXPERIENCE ANALYSIS
 -- ============================================================================
 
@@ -145,7 +136,7 @@ ORDER BY count DESC;
 SELECT 
     experience_years,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -156,8 +147,8 @@ ORDER BY experience_years;
 SELECT 
     MIN(experience_years) AS min_experience,
     MAX(experience_years) AS max_experience,
-    AVG(CAST(experience_years AS FLOAT)) AS avg_experience,
-    STDEV(CAST(experience_years AS FLOAT)) AS experience_stddev
+    ROUND(AVG(CAST(experience_years AS FLOAT)),0) AS avg_experience,
+    ROUND(STDEV(CAST(experience_years AS FLOAT)),2) AS experience_stddev
 FROM [dbo].[job_salary_prediction_dataset];
 
 -- Experience brackets and salary
@@ -170,7 +161,7 @@ SELECT
         ELSE '15+ years'
     END AS experience_bracket,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -183,13 +174,7 @@ GROUP BY
         ELSE '15+ years'
     END
 ORDER BY 
-    CASE 
-        WHEN experience_years = 0 THEN 1
-        WHEN experience_years BETWEEN 1 AND 5 THEN 2
-        WHEN experience_years BETWEEN 6 AND 10 THEN 3
-        WHEN experience_years BETWEEN 11 AND 15 THEN 4
-        ELSE 5
-    END;
+ min_salary ASC
 
 -- 6. INDUSTRY ANALYSIS
 -- ============================================================================
@@ -207,14 +192,6 @@ FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY industry
 ORDER BY avg_salary DESC;
 
--- Top industries by record count
-SELECT TOP 15
-    industry,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY industry
-ORDER BY count DESC;
 
 -- 7. COMPANY SIZE ANALYSIS
 -- ============================================================================
