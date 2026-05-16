@@ -40,54 +40,26 @@ FROM [dbo].[job_salary_prediction_dataset];
 -- ============================================================================
 
 -- Overall salary statistics - using simple aggregates and subqueries
+WITH salary_quartiles AS (
+    SELECT 
+        salary,
+        NTILE(4) OVER (ORDER BY salary) AS quartile
+    FROM [dbo].[job_salary_prediction_dataset]
+)
 SELECT 
-    MIN(salary) AS min_salary,
-    MAX(salary) AS max_salary,
-    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
-    ROUND(STDEV(CAST(salary AS FLOAT)),0) AS salary_stddev,
-    (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q1_salary,
-    (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS median_salary,
-    (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q3_salary
-FROM [dbo].[job_salary_prediction_dataset];
-
--- Salary distribution by quartiles
-SELECT 
-    'Q1 (0-25%)' AS salary_quartile,
+    CASE 
+        WHEN quartile = 1 THEN 'Q1 (0-25%)'
+        WHEN quartile = 2 THEN 'Q2 (25-50%)'
+        WHEN quartile = 3 THEN 'Q3 (50-75%)'
+        WHEN quartile = 4 THEN 'Q4 (75-100%)'
+    END AS salary_quartile,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
     COUNT(*) AS record_count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary <= (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-UNION ALL
-SELECT 
-    'Q2 (25-50%)',
-    MIN(salary),
-    MAX(salary),
-    COUNT(*),
-    AVG(CAST(salary AS FLOAT))
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary > (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-    AND salary <= (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-UNION ALL
-SELECT 
-    'Q3 (50-75%)',
-    MIN(salary),
-    MAX(salary),
-    COUNT(*),
-    AVG(CAST(salary AS FLOAT))
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary > (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-    AND salary <= (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-UNION ALL
-SELECT 
-    'Q4 (75-100%)',
-    MIN(salary),
-    MAX(salary),
-    COUNT(*),
-    AVG(CAST(salary AS FLOAT))
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary > (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]);
+    ROUND(AVG(CAST(salary AS FLOAT)), 0) AS avg_salary
+FROM salary_quartiles
+GROUP BY quartile
+ORDER BY quartile;
 
 -- 3. JOB TITLE ANALYSIS
 -- ============================================================================
@@ -96,11 +68,10 @@ WHERE salary > (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM
 SELECT TOP 20
     job_title,
     COUNT(*) AS job_count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
-    AVG(CAST(experience_years AS FLOAT)) AS avg_experience
+    ROUND(AVG(CAST(experience_years AS FLOAT)),0) AS avg_experience
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY job_title
 ORDER BY avg_salary DESC;
@@ -254,24 +225,15 @@ ORDER BY count DESC;
 
 -- Salary by skills level/count
 SELECT 
-    skills,
+    skills_count,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
+	CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage_distribution
 FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY skills
+GROUP BY skills_count
 ORDER BY avg_salary DESC;
-
--- Skills distribution
-SELECT 
-    skills,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage_distribution
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY skills
-ORDER BY count DESC;
 
 -- 11. CERTIFICATIONS ANALYSIS
 -- ============================================================================
@@ -280,22 +242,13 @@ ORDER BY count DESC;
 SELECT 
     certifications,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
-    MAX(salary) AS max_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
+    MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY certifications
 ORDER BY avg_salary DESC;
 
--- Certifications distribution
-SELECT 
-    certifications,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage_distribution
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY certifications
-ORDER BY count DESC;
 
 -- 12. MULTI-DIMENSIONAL ANALYSIS
 -- ============================================================================
@@ -305,7 +258,7 @@ SELECT TOP 30
     job_title,
     education_level,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
@@ -335,6 +288,7 @@ SELECT
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY location, remote_work
 ORDER BY avg_salary DESC;
+-- Data quality isse since we have 8234 people from work location "Remote" but sayin "no" to remote_work
 
 -- Salary by experience years, certifications and remote work
 SELECT 
