@@ -43,8 +43,8 @@ FROM [dbo].[job_salary_prediction_dataset];
 SELECT 
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
+    ROUND(STDEV(CAST(salary AS FLOAT)),0) AS salary_stddev,
     (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q1_salary,
     (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS median_salary,
     (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset]) AS q3_salary
@@ -200,23 +200,13 @@ ORDER BY avg_salary DESC;
 SELECT 
     company_size,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev,
     CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY company_size
 ORDER BY avg_salary DESC;
-
--- Company size distribution
-SELECT 
-    company_size,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage_distribution
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY company_size
-ORDER BY count DESC;
 
 -- 8. LOCATION ANALYSIS
 -- ============================================================================
@@ -225,22 +215,14 @@ ORDER BY count DESC;
 SELECT TOP 25
     location,
     COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
+    ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
     MIN(salary) AS min_salary,
     MAX(salary) AS max_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_stddev
+    ROUND(STDEV(CAST(salary AS FLOAT)),0) AS salary_stddev,
+	CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
 FROM [dbo].[job_salary_prediction_dataset]
 GROUP BY location
 ORDER BY avg_salary DESC;
-
--- Top locations by frequency
-SELECT TOP 20
-    location,
-    COUNT(*) AS count,
-    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM [dbo].[job_salary_prediction_dataset]) AS DECIMAL(5, 2)) AS percentage
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY location
-ORDER BY count DESC;
 
 -- 9. REMOTE WORK ANALYSIS
 -- ============================================================================
