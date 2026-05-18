@@ -240,13 +240,14 @@ ORDER BY avg_salary DESC;
 
 -- Salary by certifications count
 SELECT 
+    experience_years,
     certifications,
     COUNT(*) AS count,
     ROUND(AVG(CAST(salary AS FLOAT)),0) AS avg_salary,
-    MIN(salary) AS min_salary,
-    MAX(salary) AS max_salary
+	ROUND(MIN(salary),0) AS min_salary,
+    ROUND(MAX(salary),0) AS max_salary
 FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY certifications
+GROUP BY experience_years, certifications
 ORDER BY avg_salary DESC;
 
 
@@ -290,6 +291,18 @@ GROUP BY location, remote_work
 ORDER BY avg_salary DESC;
 -- Data quality isse since we have 8234 people from work location "Remote" but sayin "no" to remote_work
 
+-- Since this is Generated Data set it's just worth noticing, but in reality we should cosider further investigation those recoreds from this query
+
+SELECT 
+    location,
+    remote_work,
+    COUNT(*) AS record_count
+FROM [dbo].[job_salary_prediction_dataset]
+WHERE location = 'Remote' 
+    AND remote_work IN ('No', 'Hybrid')
+GROUP BY location, remote_work
+ORDER BY record_count DESC;
+
 -- Salary by experience years, certifications and remote work
 SELECT 
     experience_years,
@@ -308,33 +321,43 @@ ORDER BY avg_salary DESC;
 
 -- Identify high salary outliers (top 5%)
 SELECT TOP 50
-    job_title,
-    education_level,
-    experience_years,
-    industry,
-    location,
-    remote_work,
-    certifications,
-    salary,
+    j.job_title,
+    j.education_level,
+    j.experience_years,
+    j.industry,
+    j.location,
+    j.remote_work,
+    j.certifications,
+    j.salary,
     'High Salary' AS outlier_type
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary > (SELECT PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-ORDER BY salary DESC;
+FROM [dbo].[job_salary_prediction_dataset] AS j
+CROSS JOIN (
+    SELECT TOP 1
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CAST(salary AS FLOAT)) OVER () AS p95
+    FROM [dbo].[job_salary_prediction_dataset]
+) AS pct
+WHERE j.salary > pct.p95
+ORDER BY j.salary DESC;
 
 -- Identify low salary outliers (bottom 5%)
 SELECT TOP 50
-    job_title,
-    education_level,
-    experience_years,
-    industry,
-    location,
-    remote_work,
-    certifications,
-    salary,
-    'Low Salary' AS outlier_type
-FROM [dbo].[job_salary_prediction_dataset]
-WHERE salary < (SELECT PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY salary) FROM [dbo].[job_salary_prediction_dataset])
-ORDER BY salary ASC;
+    j.job_title,
+    j.education_level,
+    j.experience_years,
+    j.industry,
+    j.location,
+    j.remote_work,
+    j.certifications,
+    j.salary,
+    'Low Sallary' AS outlier_type
+FROM [dbo].[job_salary_prediction_dataset] AS j
+CROSS JOIN (
+    SELECT TOP 1
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CAST(salary AS FLOAT)) OVER () AS p95
+    FROM [dbo].[job_salary_prediction_dataset]
+) AS pct
+WHERE j.salary < pct.p95
+ORDER BY j.salary DESC;
 
 -- 14. DATA QUALITY CHECKS
 -- ============================================================================
@@ -381,79 +404,6 @@ GROUP BY
     salary
 HAVING COUNT(*) > 1
 ORDER BY duplicate_count DESC;
-
--- 15. CORRELATION & RELATIONSHIP ANALYSIS
--- ============================================================================
-
--- Average salary metrics by multiple dimensions
-SELECT 
-    job_title,
-    industry,
-    company_size,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    COUNT(*) AS count,
-    AVG(CAST(experience_years AS FLOAT)) AS avg_experience,
-    AVG(CAST(skills AS FLOAT)) AS avg_skills,
-    AVG(CAST(certifications AS FLOAT)) AS avg_certifications
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY job_title, industry, company_size
-HAVING COUNT(*) >= 5
-ORDER BY avg_salary DESC;
-
--- Experience and certifications impact on salary
-SELECT 
-    experience_years,
-    certifications,
-    COUNT(*) AS count,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    MIN(salary) AS min_salary,
-    MAX(salary) AS max_salary
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY experience_years, certifications
-ORDER BY experience_years, certifications;
-
--- Remote work advantage analysis
-SELECT 
-    remote_work,
-    job_title,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    COUNT(*) AS count
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY remote_work, job_title
-HAVING COUNT(*) >= 3
-ORDER BY remote_work, avg_salary DESC;
-
--- 16. SUMMARY STATISTICS
--- ============================================================================
-
--- Comprehensive summary by job title and education
-SELECT 
-    job_title,
-    education_level,
-    COUNT(*) AS total_positions,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    MAX(salary) AS max_salary,
-    MIN(salary) AS min_salary,
-    STDEV(CAST(salary AS FLOAT)) AS salary_variance,
-    AVG(CAST(experience_years AS FLOAT)) AS avg_exp,
-    AVG(CAST(certifications AS FLOAT)) AS avg_certs
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY job_title, education_level
-ORDER BY avg_salary DESC;
-
--- Geographic and company performance summary
-SELECT 
-    location,
-    company_size,
-    COUNT(*) AS positions,
-    AVG(CAST(salary AS FLOAT)) AS avg_salary,
-    MAX(salary) AS max_salary,
-    MIN(salary) AS min_salary,
-    AVG(CAST(experience_years AS FLOAT)) AS avg_experience
-FROM [dbo].[job_salary_prediction_dataset]
-GROUP BY location, company_size
-HAVING COUNT(*) >= 3
-ORDER BY avg_salary DESC;
 
 -- ============================================================================
 -- END OF EDA ANALYSIS
